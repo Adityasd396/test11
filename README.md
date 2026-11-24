@@ -1,6 +1,6 @@
 # Solace setup and operations guide
 
-**Release covered: 2026.11.24.1 · SQLite schema 9**
+**Release covered: 2026.11.24.2 · SQLite schema 9**
 
 Solace is a watch-party app for synchronized playback, room chat, private messages, and shared games. The web app runs on Flask and SQLite. The separate Android and iPhone app uses Expo and React Native.
 
@@ -131,7 +131,8 @@ Set the WSGI source directory and virtual environment on the Web tab, ensure HTT
 | `SECRET_KEY` | Use a stable, private signing secret of at least 32 characters. Preserve the current secret or existing instance secret file during upgrades. |
 | `SOLACE_INSTANCE_PATH` | Optional absolute path to persistent, writable, private storage. Keep the existing path on upgrades. |
 | `COOKIE_SECURE=1` | Keep this enabled for the supplied HTTPS Waitress entrypoint. |
-| `TRUST_PROXY`, `SOLACE_TRUST_X_REAL_IP` | Enable only for the corresponding trusted proxy behavior. Forwarded headers must be set by infrastructure you control or trust. |
+| `TRUST_PROXY`, `SOLACE_TRUSTED_PROXY` | Set `TRUST_PROXY=1` behind a reverse proxy that overwrites forwarded headers. The immediate proxy defaults to `127.0.0.1`. Set `SOLACE_TRUSTED_PROXY` to its literal IP address when it connects from a different address. |
+| `SOLACE_TRUST_X_REAL_IP` | Use only if the hosting proxy guarantees the `X-Real-IP` header is set by trusted infrastructure. |
 | `SOLACE_REQUIRE_EMAIL` | Defaults to `1` in production readiness. `0` is for an intentional limited rollout without working verification and password-reset email. |
 | `SOLACE_SITE_ORIGINS` | Approved extra HTTPS origins for site changes. Set up DNS, TLS and hosting routes before publishing a domain change. |
 
@@ -140,6 +141,8 @@ For another Python host, run `python serve.py` behind your HTTPS reverse proxy. 
 ## Host Solace on your own server
 
 These examples assume a Linux server with Python 3.13+, systemd, Nginx, and a domain you control. Replace `watch.example.com` with your HTTPS hostname. Point its DNS to the server and provision a TLS certificate before exposing the app. Publish ports 80 and 443 through your firewall. Keep the Python listener on loopback. If you are moving existing data, keep the new hostname private during rehearsal and follow the migration section before opening it to users.
+
+On EC2, run `cat /etc/os-release` over SSH to identify the distribution. If Nginx is missing, install it with `sudo apt update && sudo apt install nginx` on Ubuntu or Debian, or `sudo dnf install nginx` on Amazon Linux 2023. Verify that `python3.13 --version` succeeds before setting up Solace. Uploading the ZIP does not create or start a service.
 
 Upload the **`Solace-release-source.zip`** to your own account over SSH. It includes `serve.py`, the app, and the maintenance tools. On the server, from the directory with that ZIP:
 
@@ -211,7 +214,17 @@ location / {
 }
 ```
 
-For a fresh installation, start the service with `sudo systemctl daemon-reload` and `sudo systemctl enable --now solace`. For a transfer, do that after installing the data. Run `sudo nginx -t` before reloading Nginx, then check the public HTTPS `/api/health` and `/api/ready`. The service log is available through `sudo journalctl -u solace`. [Nginx reverse proxy configuration](https://nginx.org/en/docs/http/ngx_http_proxy_module.html)
+For a fresh installation, start the service with `sudo systemctl daemon-reload` and `sudo systemctl enable --now solace`. For a transfer, do that after installing the data. Check Nginx with `sudo nginx -t`, start it with `sudo systemctl enable --now nginx`, and reload it if it was already running. Check the public HTTPS `/api/health` and `/api/ready`. The service log is available through `sudo journalctl -u solace`. [Nginx reverse proxy configuration](https://nginx.org/en/docs/http/ngx_http_proxy_module.html)
+
+If both service units are missing, create `solace.service` using the unit above and install Nginx for your distribution. Once the units exist, use these commands on the server. Replace the hostname with the value in `SOLACE_PUBLIC_URL`.
+
+```bash
+sudo systemctl status solace nginx --no-pager -l
+sudo journalctl -u solace -n 40 --no-pager
+curl -i -H 'Host: watch.example.com' http://127.0.0.1:8080/api/ready
+```
+
+A connection refusal from the last command means Waitress is absent from that port. A 503 response shows which readiness check failed. If readiness passes locally but the public site times out, verify that the EC2 instance has a public address, that the security group is attached to it, and that the subnet route points to an internet gateway. Use the configured HTTPS hostname for the public site. A raw-IP request can be rejected when Solace is configured for a different hostname. [AWS public subnet requirements](https://docs.aws.amazon.com/vpc/latest/userguide/working-with-igw.html)
 
 ## Move from PythonAnywhere
 

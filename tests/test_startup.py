@@ -1,7 +1,9 @@
 """Smoke actual app import/schema setup, without the manually built test fixture."""
+from http.client import HTTPConnection
 import os
 from pathlib import Path
 import shutil
+import socket
 import sqlite3
 import subprocess
 import sys
@@ -81,5 +83,56 @@ print('Fresh schema and preserved legacy data checks passed.')
 
     def test_legacy_database_migrates_without_losing_history(self):self.verify_startup(legacy=True)
 
+    def test_production_server_honors_only_configured_reverse_proxy(self):
+        with tempfile.TemporaryDirectory(prefix='solace-proxy-smoke-') as temporary:
+            for proxy, expected in (('127.0.0.1', 200), ('127.0.0.2', 308)):
+                with self.subTest(proxy=proxy), socket.socket() as reserve:
+                    reserve.bind(('127.0.0.1', 0))
+                    port = reserve.getsockname()[1]
+                    reserve.close()
+                    env = {key: value for key, value in os.environ.items() if not key.startswith('SOLACE_')}
+                    env.update(
+                        SOLACE_ENV='production', SOLACE_PUBLIC_URL='https://watch.example.test',
+                        SOLACE_CONTACT_EMAIL='owner@example.test', SOLACE_REQUIRE_EMAIL='0',
+                        SOLACE_INSTANCE_PATH=str(Path(temporary) / proxy), COOKIE_SECURE='1',
+                        HOST='127.0.0.1', PORT=str(port), TRUST_PROXY='1', SOLACE_TRUSTED_PROXY=proxy,
+                        SECRET_KEY='synthetic-proxy-test-only-32-characters',
+                    )
+                    with subprocess.Popen(
+                        [sys.executable, '-B', 'serve.py'], cwd=ROOT, env=env,
+                        stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                    ) as server:
+                        try:
+                            deadline = time.monotonic() + 15
+                            while True:
+                                connection = HTTPConnection('127.0.0.1', port, timeout=2)
+                                try:
+                                    connection.request('GET', '/api/ready', headers={'Host': 'watch.example.test'})
+                                    response = connection.getresponse()
+                                    self.assertEqual(response.status, 200, response.read())
+                                    break
+                                except OSError:
+                                    if server.poll() is not None:
+                                        self.fail(server.stderr.read().decode())
+                                    if time.monotonic() >= deadline:
+                                        raise
+                                    time.sleep(.15)
+                                finally:
+                                    connection.close()
+                            connection = HTTPConnection('127.0.0.1', port, timeout=2)
+                            try:
+                                connection.request('GET', '/', headers={
+                                    'Host': 'watch.example.test',
+                                    'X-Forwarded-Host': 'watch.example.test',
+                                    'X-Forwarded-Proto': 'https',
+                                })
+                                response = connection.getresponse()
+                                self.assertEqual(response.status, expected, response.read())
+                            finally:
+                                connection.close()
+                        finally:
+                            if server.poll() is None:
+                                server.terminate()
+                            server.wait(timeout=10)
 
 if __name__=='__main__':unittest.main()
