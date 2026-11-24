@@ -1,0 +1,65 @@
+'use strict';
+(async()=>{const $=id=>document.getElementById(id),{request:req,make,id,mediaNode,attachment}=SolaceMedia;let current=null,person=null,cursor=0,oldest=0,polling=false,more=false,canSend=true,lastTyping=0,typingTimer,typingStartTimer,loading=false,readAt=0,readSent=0,offset=0,epoch=0,pending=null,latestRead=null;
+function status(text){$('dmStatus').textContent=text}function time(value){return new Date(value*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}function action(text,fn){const b=make('button',text,'secondary');b.type='button';b.onclick=async()=>{b.disabled=true;try{await fn()}catch(e){status(e.message)}finally{b.disabled=false}};return b}
+const previewHost=make('div',undefined,'dm-preview-slot');$('dmForm').before(previewHost);const attach=attachment($('dmAttachment'),previewHost,{scope:'dm',scopeId:()=>current});
+const viewport = SolaceSocialChat.mount($('dmOpen'), $('dmHistory'), $('dmText'), $('dmForm'), $('dmSend'), $('dmLatest'));
+function record(m) {
+ const row = make('article', undefined, 'dm-message '+(m.you?'mine':'received'));
+ row.dataset.id = m.id;
+ const avatar=make('img',undefined,'chat-photo');avatar.alt='';avatar.width=28;avatar.height=28;avatar.loading='eager';
+ if(m.code)avatar.dataset.profileCode=m.code;
+ if(window.SolaceAvatars)SolaceAvatars.paint(avatar,m.avatar||'/static/default-avatar.svg');else avatar.src=m.avatar||'/static/default-avatar.svg';
+ row.append(avatar);
+
+ row.dataset.contentKey = JSON.stringify([m.body,m.deleted,m.media?.id,m.media?.deleted,m.name]);
+ const bubble = make('div', undefined, 'social-bubble');
+ const body = make('p', m.deleted?'Message removed':m.body);
+ body.dir = 'auto';
+ bubble.append(body);
+ if (m.media && !m.deleted) bubble.append(mediaNode(m.media));
+ const footer = make('footer');
+ footer.append(make('time', time(m.created)));
+ if (m.you && !m.deleted) {
+  footer.append(make('small', latestRead!==null&&m.id<=latestRead?'✓✓':'', 'dm-receipt'));
+  SolaceSocialChat.setActions(row, async () => {
+   const cid = current;
+   await req('/api/me/conversations/'+cid+'/messages/'+m.id, null, 'DELETE');
+   if (cid===current) row.replaceWith(record({...m,body:'',deleted:true,media:null}));
+  }, m.media && !m.media.deleted ? async () => {
+   await req('/api/me/media/'+m.media.id, null, 'DELETE');
+   row.querySelector('.shared-media')?.replaceWith(make('small','Attachment removed'));
+  } : null, status);
+ }
+ bubble.append(footer);
+ row.append(bubble);
+ return row;
+}
+function append(messages, prepend=false) {
+ const anchor = viewport.capture();
+ for(const m of messages){
+  const previous=$('dmMessages').querySelector('[data-id="'+m.id+'"]');
+  if(previous){
+   if(previous.dataset.contentKey!==JSON.stringify([m.body,m.deleted,m.media?.id,m.media?.deleted,m.name]))previous.replaceWith(record(m));
+  }else if(prepend)$('dmMessages').prepend(record(m));else $('dmMessages').append(record(m));
+  cursor=Math.max(cursor,m.id);
+  oldest=oldest?Math.min(oldest,m.id):m.id;
+ }
+ viewport.restore(anchor);
+}
+async function inbox(add=false){const priorOffset=offset,d=await req('/api/me/conversations?offset='+(add?offset:0)),target=$('dmList'),prior=[...target.querySelectorAll('[data-cid]')],known=new Map(prior.map(n=>[n.dataset.cid,n])),ordered=[];offset=!add&&priorOffset>30?priorOffset:d.next_offset;if(add||priorOffset<=30)$('moreConversations').hidden=!d.has_more;for(const c of d.conversations){let b=known.get(c.id);if(!b){b=make('button',undefined,'dm-conversation');b.type='button';b.dataset.cid=c.id;const img=make('img');img.alt='';const info=make('span',undefined,'conversation-copy');info.append(make('strong'),make('small'));b.append(img,info,make('time'));b.onclick=()=>open(c.id)}b.setAttribute('aria-current',String(c.id===current));const img=b.querySelector('img');if(img.getAttribute('src')!==c.person.avatar)img.src=c.person.avatar;b.querySelector('strong').textContent=c.person.name;b.querySelector('small').textContent=c.preview;b.querySelector('time').textContent=time(c.created);let unread=b.querySelector('.unread-count');if(c.unread){if(!unread){unread=make('span',undefined,'unread-count');b.append(unread)}unread.textContent=c.unread}else unread?.remove();ordered.push(b)}const ids=new Set(ordered.map(n=>n.dataset.cid));const keep=add?prior:priorOffset>30?prior.slice(30):[];const nodes=add?[...keep,...ordered.filter(n=>!known.has(n.dataset.cid))]:[...ordered,...keep.filter(n=>!ids.has(n.dataset.cid))];const retained=new Set(nodes);for(const child of [...target.children])if(!retained.has(child))child.remove();nodes.forEach((node,index)=>{if(target.children[index]!==node)target.insertBefore(node,target.children[index]||null)});if(!nodes.length)target.append(make('p','No conversations yet. Start with a friend.','quiet'))}
+function setConversationURL(cid) {
+ const url = new URL(location.href);
+ url.searchParams.delete('friend');
+ if (cid) url.searchParams.set('chat', cid); else url.searchParams.delete('chat');
+ history.replaceState({}, '', url);
+}
+async function open(cid){if(loading)return;loading=true;epoch++;current=cid;cursor=oldest=0;readSent=0;pending=null;$('dmText').value='';attach.clear();$('dmMessages').replaceChildren();$('dmPending').replaceChildren();$('dmEmpty').hidden=true;$('dmOpen').hidden=false;document.body.classList.add('dm-thread-open');setConversationURL(cid);viewport.jump();try{await load(true);await inbox();viewport.jump()}catch(e){status(e.message)}finally{loading=false}}
+async function load(full=false){if(!current||polling||(document.hidden&&!full))return;polling=true;const active=current,e=epoch;try{const d=await req('/api/me/conversations/'+active+(full?'':'?after='+cursor));if(active!==current||e!==epoch)return;person=d.person;latestRead=d.read_id;canSend=d.can_send;$('dmName').textContent=person.name;$('dmName').dataset.profileCode=person.code;$('dmName').tabIndex=0;$('dmAvatar').onclick=()=>SolacePeople.open(person.code);if($('dmAvatar').getAttribute('src')!==person.avatar)$('dmAvatar').src=person.avatar;$('dmPresence').textContent=person.online===null?'Private conversation':person.online?'● Online':'Away';$('dmTyping').textContent=d.typing?person.name+' is typing…':'';$('dmSend').disabled=!canSend;$('dmText').disabled=!canSend;attach.button.disabled=!canSend;$('dmPermission').textContent=canSend?'':'You must be accepted friends to send messages.';append(d.messages);for(const row of $('dmMessages').querySelectorAll('.dm-message.mine')){const receipt=row.querySelector('.dm-receipt');const text=latestRead!==null&&Number(row.dataset.id)<=latestRead?'✓✓':'';if(receipt&&receipt.textContent!==text)receipt.textContent=text}for(const mid of d.media_removed||[]){const n=$('dmMessages').querySelector('[data-id="'+mid+'"] .shared-media');if(n){SolaceSocialChat.clearAttachmentAction(n.closest('.dm-message'));n.replaceChildren(make('small','Attachment removed'))}}for(const change of d.removed){const n=$('dmMessages').querySelector('[data-id="'+change.id+'"]');if(n&&!n.classList.contains('removed')){n.classList.add('removed');SolaceSocialChat.clearActions(n);n.querySelector('.social-bubble')?.replaceChildren(make('p','Message removed'))}}$('olderMessages').hidden=full?!d.has_more:$('olderMessages').hidden;if(!document.hidden&&Date.now()-readAt>1000&&cursor>readSent&&$('dmHistory').scrollHeight-$('dmHistory').scrollTop-$('dmHistory').clientHeight<100){await req('/api/me/conversations/'+active+'/state',{read_id:cursor});readSent=cursor;readAt=Date.now()}}catch(err){status(err.message);if(err.status===403||/block|unavailable/.test(err.message)){$('dmSend').disabled=true;$('dmText').disabled=true}}finally{polling=false}}
+$('olderMessages').onclick=async()=>{viewport.pause();if(!current||!oldest)return;try{const d=await req('/api/me/conversations/'+current+'?before='+oldest);for(const m of [...d.messages].reverse())append([m],true);$('olderMessages').hidden=!d.has_more}catch(e){status(e.message)}};$('moreConversations').onclick=()=>inbox(true).catch(e=>status(e.message));
+function pendingUI(text,failed=false){$('dmPending').replaceChildren(make('span',text));if(failed)$('dmPending').append(action('Retry',send),action('Discard',()=>{pending=null;$('dmPending').replaceChildren();attach.clear()}))}
+async function send(){if(!current||!canSend||$('dmSend').disabled)return;const cid=current;let text=pending?.body??$('dmText').value.trim();if(!text&&!attach.has())return;$('dmSend').disabled=true;attach.lock(true);pendingUI('Sending…');try{if(!pending)pending={request_id:id(),body:text,media_id:null};const outgoing=pending;if(!outgoing.media_id&&attach.has())outgoing.media_id=await attach.upload();const result=await req('/api/me/conversations/'+cid,outgoing);if(current!==cid)return;append([result.message]);if($('dmText').value.trim()===outgoing.body)$('dmText').value='';pending=null;attach.sent(outgoing.media_id);$('dmPending').replaceChildren();viewport.jump();await req('/api/me/conversations/'+cid+'/state',{typing:!!$('dmText').value.trim()});await inbox();status('')}catch(e){if(current===cid)pendingUI(e.message,true)}finally{if(current===cid){$('dmSend').disabled=!canSend;attach.lock(!canSend)}}}
+$('dmSend').addEventListener('mousedown',e=>e.preventDefault());$('dmForm').onsubmit=e=>{e.preventDefault();send()};$('dmText').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();send()}});$('dmText').oninput=()=>{clearTimeout(typingTimer);clearTimeout(typingStartTimer);if(!current)return;if(!($('dmText').value.trim())||Date.now()-lastTyping>800){lastTyping=Date.now();req('/api/me/conversations/'+current+'/state',{typing:!!$('dmText').value.trim()}).catch(()=>{})}else typingStartTimer=setTimeout(()=>{if(current){lastTyping=Date.now();req('/api/me/conversations/'+current+'/state',{typing:!!$('dmText').value.trim()}).catch(()=>{})}},800);typingTimer=setTimeout(()=>{if(current)req('/api/me/conversations/'+current+'/state',{typing:false}).catch(()=>{})},2400)};
+$('backInbox').onclick=()=>{epoch++;current=null;document.body.classList.remove('dm-thread-open');$('dmOpen').hidden=true;$('dmEmpty').hidden=false;setConversationURL(null);viewport.layout();attach.clear();inbox().catch(e=>status(e.message))};$('hideConversation').onclick=async()=>{if(!current)return;try{await req('/api/me/conversations/'+current,null,'DELETE');$('backInbox').click()}catch(e){status(e.message)}};
+$('inviteDmWatch').onclick=async()=>{try{const data=await req('/api/me/dashboard');const r=await req('/api/rooms',{name:data.profile.name+'’s room',visibility:'private'});await req('/api/rooms/'+r.id,{action:'join'});await req('/api/me/invitations',{action:'send',room:r.id,code:person.code});const text='I invited you to watch together. Open Home → Invitations to join.';await req('/api/me/conversations/'+current,{body:text,request_id:id()});await load();status('Private room invitation sent. You can keep chatting here.')}catch(e){status(e.message)}};
+let tick=0;const timer=setInterval(()=>{if(document.hidden)return;load();if(tick++%5===0)inbox().catch(e=>status(e.message))},1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden){load();inbox().catch(e=>status(e.message))}});window.addEventListener('online',()=>{status('');load();inbox().catch(e=>status(e.message))});window.addEventListener('offline',()=>status('You’re offline. Your draft stays here; reconnect and retry.'));window.addEventListener('pagehide',()=>{clearInterval(timer);clearTimeout(typingTimer);clearTimeout(typingStartTimer)});window.addEventListener('pageshow',e=>{if(e.persisted)location.reload()});try{await inbox();const query=new URLSearchParams(location.search),code=query.get('friend');if(code){const c=await req('/api/me/conversations',{code});await open(c.id)}else if(query.get('chat'))await open(query.get('chat'))}catch(e){status(e.message)}
+})();

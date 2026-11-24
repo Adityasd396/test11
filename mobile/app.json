@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "Solace",
+    "slug": "afterglow-mobile",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "dark",
+    "scheme": "afterglow",
+    "ios": {
+      "icon": "./assets/solace-ios.png",
+      "supportsTablet": true,
+      "bundleIdentifier": "com.afterglow.watchtogether",
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "Connect to your Solace room server on the same Wi-Fi.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      }
+    },
+    "android": {
+      "package": "com.afterglow.watchtogether",
+      "usesCleartextTraffic": true
+    },
+    "plugins": [
+      "expo-status-bar"
+    ],
+    "description": "Watch together, chat and share a little company."
+  }
+}

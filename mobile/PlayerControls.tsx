@@ -1,0 +1,19 @@
+import {NavIcon} from './NavIcon';
+import {haptic} from './Haptics';
+import RhythmHeart from './RhythmHeart';
+import React,{useEffect,useRef,useState} from 'react';
+import {AccessibilityInfo,Animated,Platform,Pressable,StyleSheet,Text,View} from 'react-native';
+const {AutoHideControls}=require('./session.cjs');
+type Props={docked?:boolean;playing:boolean;expanded:boolean;active:boolean;captureTouches:boolean;disabled:boolean;onSeek:(delta:number)=>void;onToggle:()=>void;onFullscreen:()=>void};
+export default function PlayerControls(props:Props){
+ const controller=useRef(new AutoHideControls(3000)),opacity=useRef(new Animated.Value(1)).current;
+ const visibleRef=useRef(true);
+ const [visible,setVisible]=useState(true),[screenReader,setScreenReader]=useState(false),[reducedMotion,setReducedMotion]=useState(false);
+ function paint(next:boolean){if(visibleRef.current===next)return;visibleRef.current=next;setVisible(next);Animated.timing(opacity,{toValue:next?1:0,duration:reducedMotion?0:200,useNativeDriver:true}).start()}
+ useEffect(()=>{AccessibilityInfo.isReduceMotionEnabled().then(setReducedMotion);const motion=AccessibilityInfo.addEventListener('reduceMotionChanged',setReducedMotion);return()=>motion.remove()},[]);
+ useEffect(()=>{AccessibilityInfo.isScreenReaderEnabled().then(setScreenReader);const listener=AccessibilityInfo.addEventListener('screenReaderChanged',setScreenReader);return()=>listener.remove()},[]);
+ useEffect(()=>{controller.current.show();paint(true);if(!props.active||props.docked)return;const timer=setInterval(()=>{const next=(controller.current.focused=screenReader,controller.current.update(props.playing));paint(next)},250);return()=>clearInterval(timer)},[props.playing,props.active,props.expanded,props.docked,screenReader]);
+ const interact=(action:()=>void)=>{haptic('song');controller.current.show();paint(true);action()};
+ return <View pointerEvents="box-none" style={props.docked?undefined:StyleSheet.absoluteFill}>{!props.docked&&props.captureTouches&&<Pressable accessibilityRole="button" accessibilityLabel="Show or hide playback controls" style={StyleSheet.absoluteFill} onPress={()=>{controller.current.show();paint(true)}}/>}<Animated.View pointerEvents={props.docked||visible?'auto':'none'} accessibilityElementsHidden={!props.docked&&!visible} importantForAccessibility={props.docked||visible?'auto':'no-hide-descendants'} style={[s.bar,props.docked?{position:'relative',opacity:1,padding:7,backgroundColor:'#101116'}:{opacity}]}>{[['−10s',()=>props.onSeek(-10)], [props.playing?'Pause':'Play',props.onToggle],['+10s',()=>props.onSeek(10)],[props.expanded?'Exit fullscreen':'Fullscreen',props.onFullscreen]].map(([label,action],index)=><Pressable key={index} accessibilityRole="button" accessibilityLabel={String(label)} disabled={index!==3&&props.disabled} hitSlop={props.docked?4:0} style={[s.button,props.docked&&s.compact,index===1&&props.docked&&{backgroundColor:'#dfc1f0'}]} onPress={()=>interact(action as ()=>void)}>{index===1||index===3 ? <NavIcon label={String(label)} color={index===1&&props.docked?'#392449':'#f0eafa'}/> : <Text style={[s.label,props.docked&&{fontSize:11}]}>{String(label)}</Text>}</Pressable>)}<RhythmHeart reduced={reducedMotion}/></Animated.View></View>;
+}
+const s=StyleSheet.create({compact:{minHeight:44,borderRadius:17,paddingVertical:6,paddingHorizontal:10,backgroundColor:'#2b2236',borderColor:'#dec2ef20'},bar:{position:'absolute',bottom:0,left:0,right:0,flexDirection:'row',justifyContent:'center',alignItems:'center',gap:7,padding:13,backgroundColor:'#00000066'},button:{backgroundColor:'#191720cc',borderWidth:1,borderColor:'#ffffff24',borderRadius:11,minHeight:Platform.OS==='android'?48:44,paddingHorizontal:10,paddingVertical:10,justifyContent:'center'},label:{color:'#f0eafa',fontSize:12}});

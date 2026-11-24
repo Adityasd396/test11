@@ -1,0 +1,47 @@
+/* Use the full viewport for the current game, with controls next to the board on wide screens. */
+.game-stage main {
+ width: 100%;
+ min-height: 100dvh;
+ max-width: 720px;
+ padding: 10px clamp(10px, 3vw, 24px) max(12px, env(safe-area-inset-bottom));
+ margin: auto;
+}
+.game-stage h1 { font: 650 clamp(19px, 4vw, 26px)/1.15 system-ui; margin: 0; }
+.game-stage :is(#error, #gameError, #liveStatus):empty { display: none; }
+.game-stage .game-options-drawer { margin: 0; width: 100%; }
+.game-options-drawer > summary {
+ display: inline-flex; align-items: center; min-height: 44px; padding: 0 12px;
+ cursor: pointer; font: 500 13px system-ui; color: #e9cef5;
+}
+.game-options-drawer .match-options { margin: 0 0 6px; text-align: left; }
+.game-stage .polish-cheers, .game-stage .cheer-actions { margin: 0; }
+.game-stage .polish-cheers button { min-width: 44px; min-height: 44px; }
+.game-hearts main { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+.game-hearts main > p { margin: 0; min-height: 0; }
+.game-hearts #board { width: min(100%, 460px, 59dvh); margin: 4px auto; }
+.game-hearts #board button { font-size: clamp(32px, 9vmin, 70px); }
+.game-hoops main { display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+.game-hoops main > :is(p, .meter, .power-meter, .scores) { margin: 0; }
+.game-hoops .court { min-height: 190px; height: clamp(190px, 38dvh, 400px); }
+.game-hoops #otherGame { display: none; }
+.game-ludo .board-wrap { width: min(100%, 58dvh, 585px); margin-inline: auto; }
+@media (orientation: landscape) and (min-width: 530px) {
+ .game-stage main {
+  display: grid; grid-template-columns: minmax(180px,1.2fr) minmax(205px,1fr);
+  grid-auto-rows: min-content; align-content: center; align-items: center;
+  gap: 5px 16px; max-width: 1170px;
+ }
+ .game-stage main > * { grid-column: 2; min-width: 0; }
+ .game-hearts main > #board, .game-hoops main > .court, .game-ludo main > .board-wrap {
+  grid-column: 1; grid-row: 1 / span 12; align-self: center;
+  width: min(100%, 540px, calc(100dvh - 22px));
+ }
+ .game-hearts #board { margin-inline: auto; }
+ .game-hoops main > .court { width: 100%; height: min(58vw, calc(100dvh - 22px), 550px); min-height: 175px; }
+ .game-stage .game-options-drawer { text-align: center; }
+}
+@media (max-height: 490px) {
+ .game-stage main { justify-content: start; }
+ .game-stage :is(.meter, .power-meter) { height: 20px; }
+ .game-stage .cheer-actions button { min-height: 36px; padding: 4px 10px; }
+}

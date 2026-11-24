@@ -1,0 +1,69 @@
+let savedYoutubePlayer=null,savedYoutubeReady=false,directElement=null,directPlaybackCleanup=null;
+function attachDirectPlayer(){
+ if(directElement)return;if(player){savedYoutubePlayer=player;savedYoutubeReady=ready}
+ const video=document.createElement('video');video.className='direct-video';video.playsInline=true;video.setAttribute('playsinline','');video.preload='metadata';video.disablePictureInPicture=false;document.querySelector('.player-wrap').append(video);directElement=video;
+ const controller=new SolaceDirectPlayback.Controller({play:()=>video.play(),pause:()=>video.pause(),valid:()=>video===directElement,notify:(title,message)=>{if(video===directElement)playbackNotice(title,message)}});const arm=()=>controller.arm();videoStage.addEventListener('pointerdown',arm);videoStage.addEventListener('keydown',arm);directPlaybackCleanup=()=>{controller.reset();videoStage.removeEventListener('pointerdown',arm);videoStage.removeEventListener('keydown',arm)};
+ let lastSeekAt=-Infinity;
+ const canSeek=()=>video.seekable.length>0&&video.seekable.end(video.seekable.length-1)>video.seekable.start(0)+.1;
+ const setSource=({videoId,startSeconds=0},playing)=>{controller.reset();controller.wanted=playing;video.dataset.instance=state.playback_id;video.src=videoId;const seek=()=>{if(startSeconds&&Number.isFinite(video.duration)&&canSeek())video.currentTime=Math.min(startSeconds,Math.max(0,video.duration-.1));if(playing&&controller.wanted&&state?.playing)play()};video.onloadedmetadata=seek;if(video.readyState>=1)seek()};
+ const play=()=>controller.play();
+ player={getCurrentTime:()=>video.currentTime||0,getDuration:()=>Number.isFinite(video.duration)?video.duration:0,getPlayerState:()=>video.ended?0:video.readyState<2||controller.pending?3:video.paused?2:1,getVideoData:()=>({video_id:state?.video,title:isDirectSource(state?.video)&&state.video.startsWith('/')?'Local video':'Direct stream',isLive:video.duration===Infinity,canSeek:canSeek(),driftTolerance:.5,canCorrect:!video.seeking&&video.readyState>=3&&Date.now()-lastSeekAt>1500}),seekTo:position=>{if(Number.isFinite(video.duration)&&canSeek()){lastSeekAt=Date.now();video.currentTime=Math.max(0,Math.min(position,video.duration-.1))}},playVideo:play,pauseVideo:()=>controller.pause(),loadVideoById:options=>setSource(options,true),cueVideoById:options=>setSource(options,false),isMuted:()=>video.muted,mute:()=>{video.muted=true},unMute:()=>{video.muted=false},getVolume:()=>video.volume*100};ready=true;lastVideo='';lastPlaybackId=null;
+ if(savedYoutubePlayer)try{savedYoutubePlayer.pauseVideo()}catch{}
+ document.getElementById('player')?.classList.add('inactive-player');$('playerPlaceholder').style.display='none';playerNotice.hidden=true;
+ video.addEventListener('playing',()=>{if(video===directElement){playerNotice.hidden=true;videoEndArmed=true}});
+ video.addEventListener('ended',()=>{if(video===directElement&&video.ended&&video.dataset.instance===state?.playback_id)advanceFinishedVideo()});
+ video.addEventListener('error',()=>{if(video===directElement)playbackNotice('This stream could not play','The link may have expired or this browser may not support its format or codecs. Try a fresh link or H.264/AAC MP4.')});
+}
+function detachDirectPlayer(){if(!directElement)return;directPlaybackCleanup?.();directPlaybackCleanup=null;directElement.pause();directElement.removeAttribute('src');directElement.load();directElement.remove();directElement=null;player=savedYoutubePlayer;savedYoutubePlayer=null;ready=!!player&&savedYoutubeReady;savedYoutubeReady=false;lastVideo='';lastPlaybackId=null;document.getElementById('player')?.classList.remove('inactive-player')}
+const streamRender=render;render=function(data){if(SolaceSession.isOlderSnapshot(state,data))return;if(isDirectSource(data.video))attachDirectPlayer();else detachDirectPlayer();streamRender(data);if(!isDirectSource(data.video)&&!player)loadYoutube()};
+const youtubeLoader=loadYoutube;loadYoutube=function(){if(isDirectSource(state?.video)){attachDirectPlayer();synchronize(true)}else youtubeLoader()};
+const retrySource=$('retryYoutube').onclick;$('retryYoutube').onclick=()=>{if(isDirectSource(state?.video)){detachDirectPlayer();attachDirectPlayer();synchronize(true)}else retrySource()};
+const sourceNotice=playbackNotice;playbackNotice=function(title,message){sourceNotice(title,message);$('watchOnYoutube').textContent=isDirectSource(state?.video)?'Open stream ↗':'Open YouTube ↗';if(isDirectSource(state?.video))$('watchOnYoutube').href=state.video};
+
+const providerTabs=element('div','provider-tabs');providerTabs.setAttribute('role','group');providerTabs.setAttribute('aria-label','Video source');searchTop.after(providerTabs);
+const directPanel=element('form','source-panel');directPanel.hidden=true;directPanel.innerHTML='<label>Direct video URL<input id="directUrl" type="url" placeholder="https://…" required autocomplete="off"></label><p>Direct media or a supported download link. Playback depends on device codec support.</p><button class="primary">Add video</button>';
+const netflixPanel=element('form','source-panel');netflixPanel.hidden=true;netflixPanel.innerHTML='<label>Netflix title link<input id="netflixUrl" type="url" placeholder="https://www.netflix.com/watch/…" required></label><p>Opens Netflix separately. Each viewer signs in; playback is not synced.</p><button class="primary">Open Netflix ↗</button><button type="button" class="subtle" id="shareNetflix">Share in chat</button>';
+const localPanel=element('form','source-panel');
+localPanel.hidden=true;
+localPanel.innerHTML='<label>Local video<input type="file" accept="video/mp4,video/webm,.mp4,.m4v,.webm" required></label><p>MP4 or WebM. Anyone in this room can watch the uploaded file.</p><progress max="1" aria-label="Upload progress" hidden></progress><button type="submit" class="primary">Add file</button><button type="button" class="subtle" hidden>Cancel upload</button><p role="status"></p>';
+SolaceRoomVideo.connectUpload(localPanel,()=>roomId,async(url,title)=>{
+ const mode=selecting;
+ if(!await action({action:mode==='watch'?'watch':'add',url,title}))throw Error('The video could not be added. Check the room and try again.');
+ showScreen(mode==='watch'?'watch':'queue');
+});
+providerTabs.after(directPanel,localPanel,netflixPanel);
+function selectProvider(provider){for(const button of providerTabs.children)button.setAttribute('aria-pressed',String(button.dataset.provider===provider));const youtube=provider==='youtube';$('selectionSearch').hidden=!youtube;$('selectionStatus').hidden=!youtube;$('selectionResults').hidden=!youtube;directPanel.hidden=provider!=='direct';netflixPanel.hidden=provider!=='netflix';localPanel.hidden=provider!=='local';const more=document.getElementById('searchMore');if(more)more.hidden=!youtube||!nextSearchPage}
+for(const [key,label]of [['youtube','YouTube'],['direct','Video URL'],['local','Local file'],['netflix','Netflix']]){const button=element('button','subtle',label);button.dataset.provider=key;button.type='button';button.onclick=()=>selectProvider(key);providerTabs.append(button)}selectProvider('youtube');
+async function inspectDirectSource(url,tryDirect){
+ const controller=new AbortController(),cancel=()=>controller.abort(),timer=setTimeout(cancel,25000);
+ pageRequests.signal.addEventListener('abort',cancel,{once:true});if(pageRequests.signal.aborted)cancel();
+ try{
+  return await SolaceRoomVideo.resolve(url,controller.signal,tryDirect);
+ }catch(error){if(error.name==='AbortError')throw Error('The source took too long to respond. Try a fresh direct download link.');throw error}
+ finally{clearTimeout(timer);pageRequests.signal.removeEventListener('abort',cancel)}
+}
+let tryDirectUrl='';
+$('directUrl').addEventListener('input',()=>{
+ tryDirectUrl='';
+ directPanel.querySelector('button').textContent=selecting==='watch'?'Play together':'Add to queue';
+});
+directPanel.onsubmit=async event=>{
+ event.preventDefault();if(selectionBusy)return;selectionBusy=true;
+ const button=directPanel.querySelector('button'),url=$('directUrl').value.trim(),targetRoom=roomId;button.disabled=true;button.textContent='Checking…';
+ try{
+  const source=await inspectDirectSource(url,tryDirectUrl===url);
+  if(targetRoom!==roomId)return;
+  tryDirectUrl='';
+  const result=await action({action:selecting==='watch'?'watch':'add',url:source.url,source_token:source.source_token,title:'Direct stream'});
+  if(result){$('directUrl').value='';showScreen(selecting==='watch'?'watch':'queue');if(source.warning)toast(source.warning)}
+ }catch(error){if(error.canTryDirect)tryDirectUrl=url;toast(error.message)}finally{selectionBusy=false;button.disabled=false;button.textContent=tryDirectUrl?'Try direct playback':selecting==='watch'?'Play together':'Add to queue'}
+};
+function netflixLink(){try{const url=new URL($('netflixUrl').value.trim());return url.protocol==='https:'&&['netflix.com','www.netflix.com'].includes(url.hostname)&&!url.username&&!url.password?url.href:null}catch{return null}}
+netflixPanel.onsubmit=event=>{event.preventDefault();const url=netflixLink();if(url)window.open(url,'_blank','noopener,noreferrer');else toast('Enter a Netflix HTTPS title link.')};
+$('shareNetflix').onclick=async()=>{const url=netflixLink();if(!url){toast('Enter a Netflix HTTPS title link.');return}if(await action({action:'chat',body:'Netflix · '+url}))showScreen('watch')};
+
+// Richer YouTube results, with an explicit next page and no featured placeholders.
+let nextSearchPage='',searchQuery='';const moreResults=element('button','subtle load-more','Show more');moreResults.id='searchMore';moreResults.hidden=true;$('selectionResults').after(moreResults);
+findVideos=async function(query='',append=false){const epoch=++selectionSearchEpoch,status=$('selectionStatus');query=query.trim();if(!query){$('selectionResults').replaceChildren();status.textContent='';nextSearchPage='';moreResults.hidden=true;return}status.textContent='Searching…';moreResults.disabled=true;try{const data=await api('/api/videos?q='+encodeURIComponent(query)+(append&&nextSearchPage?'&page='+encodeURIComponent(nextSearchPage):''));if(epoch!==selectionSearchEpoch)return;if(!append)$('selectionResults').replaceChildren();for(const item of data.items){const card=element('button','selection-video');card.type='button';const img=element('img');img.src='https://i.ytimg.com/vi/'+item.id+'/mqdefault.jpg';img.alt='';img.loading='lazy';const text=element('div','result-copy');text.append(element('strong','',item.title),element('small','',item.channel||''),element('p','',item.description||''));card.append(img,text);card.onclick=async()=>{if(selectionBusy)return;selectionBusy=true;try{if(await action({action:selecting==='watch'?'watch':'add',url:item.id,title:item.title})){if(selecting==='watch')showScreen('watch');else toast('Added to queue')}}finally{selectionBusy=false}};$('selectionResults').append(card)}searchQuery=query;nextSearchPage=data.next_page||'';moreResults.hidden=!nextSearchPage;status.textContent=data.items.length?'':'No videos found. Try another search.'}catch(error){if(epoch===selectionSearchEpoch)status.textContent=error.message}finally{if(epoch===selectionSearchEpoch)moreResults.disabled=false}};
+moreResults.onclick=()=>findVideos(searchQuery,true);
+const sourceSelection=openVideoSelection;openVideoSelection=function(mode='add'){tryDirectUrl='';selectProvider('youtube');sourceSelection(mode);directPanel.querySelector('button').textContent=mode==='watch'?'Play together':'Add to queue'};

@@ -1,0 +1,228 @@
+/* Shared application palette. Theme preview cards retain their own swatches. */
+html[data-site-theme] {
+ color-scheme: dark;
+ --bg:var(--site-bg); --panel:var(--site-panel); --line:var(--site-edge);
+ --text:var(--site-text); --muted:var(--site-muted); --accent:var(--site-accent);
+ --lilac:var(--site-accent); --quiet:var(--site-muted);
+ --moon-bg:var(--site-bg); --moon-panel:var(--site-panel);
+ --moon-soft:var(--site-muted); --moon-line:var(--site-edge);
+ background:var(--site-bg);
+}
+html[data-site-theme] body {
+ background:radial-gradient(ellipse at 85% 0%,color-mix(in srgb,var(--site-edge) 20%,transparent),transparent 60%),var(--site-bg) !important;
+ color:var(--site-text);
+}
+html[data-site-theme] :is(.app-sidebar,.app-mobile-nav,.app-mobile-top,.bottom-nav,.public-header,.public-footer,.watch-header,.task-screen,.room-private-screen,.space-settings,.play-bar) {
+ background:var(--site-bg) !important; color:var(--site-text);
+ border-color:var(--site-edge) !important;
+}
+html[data-site-theme] :is(.home-card,.account-card,.room-control-card,.premium-setting,.dm-inbox,.dm-heading,.world-heading,.world-chat,.profile-panel,.code-card,.home-person,.game-card,.lobby-game,.room-actions,.room-detail-actions,.compact-player-controls,.gesture-tray,.message-actions,.in-app-notice,.player-notice) {
+ background:var(--site-panel) !important; color:var(--site-text) !important;
+ border-color:var(--site-edge) !important;
+}
+html[data-site-theme] :is(.home-stat,.dm-conversation[aria-current=true],.sidebar-profile,.friend-code-row,.friend-preview,.world-choice,.room-action,.join-action) {
+ background:var(--site-raised) !important; color:var(--site-text) !important;
+ border-color:var(--site-edge) !important;
+}
+html[data-site-theme] .home-greeting,
+html[data-site-theme] .moon-heading {
+ background:linear-gradient(90deg,var(--site-panel),transparent),url('/static/moonlit.svg') right center/cover;
+ border-color:var(--site-edge);
+}
+html[data-site-theme] :is(button,.button):not(.theme-landscape):not(.theme-choice):not([data-theme]):not(.player-touch-surface) {
+ background:var(--site-raised); color:var(--site-text);
+ border-color:var(--site-edge);
+}
+html[data-site-theme] :is(.primary,button[type=submit],#dmSend,#worldSend,.send,.home-inline>button,.welcome-actions>.button) {
+ background:var(--site-accent) !important; color:var(--site-ink) !important;
+}
+html[data-site-theme] :is(input:not([type=checkbox]):not([type=range]),textarea,select) {
+ background:var(--site-panel) !important; color:var(--site-text) !important;
+ border-color:var(--site-edge) !important; caret-color:var(--site-accent);
+}
+html[data-site-theme] :is(input,textarea)::placeholder {color:var(--site-muted)}
+html[data-site-theme] :is(nav a[aria-current=page],.bottom-nav button.active,.bottom-nav button[aria-current=page],.surface-tabs button[aria-current=page]) {
+ background:var(--site-raised) !important; color:var(--site-accent) !important;
+}
+html[data-site-theme] :is(.quiet,.muted,.home-stat span,.profile-card-stats,.setting-row small,.premium-setting small) {color:var(--site-muted)}
+html[data-site-theme] :is(a,.public-wordmark,.room-brand,.watch-wordmark,.app-brand) {color:var(--site-accent)}
+html[data-site-theme] :focus-visible {outline-color:var(--site-accent)}
+html[data-site-theme] .premium-setting input[type=checkbox]:checked {
+ background:var(--site-edge) !important;
+}
+html[data-site-theme] .setting-row,
+html[data-site-theme] .chat,
+html[data-site-theme] #chatForm {background-color:var(--site-bg) !important}
+
+html[data-site-theme] :is(.game-stage main,.game-stage #ludoSetup,.game-stage .match-options,.game-stage .score,.game-stage .player,.game-stage #status,.game-stage #gameStatus) { background-color:var(--site-panel); color:var(--site-text); border-color:var(--site-edge); }
+html[data-site-theme] .game-stage main { background-color:transparent; }
+html[data-site-theme] :is(.premium-setting strong,.home-person .profile-link,.dm-conversation strong,.dm-heading h2) { color:var(--site-text) !important; }
+
+/* Keep native text editing and long-press chat actions available. */
+body { -webkit-user-select:none; user-select:none; }
+input, textarea, [contenteditable]:not([contenteditable=false]) {
+ -webkit-user-select:text; user-select:text;
+}
+
+html[data-site-theme] .profile-panel {
+ width:min(calc(100vw - 24px), 540px)!important;
+ background:linear-gradient(155deg,var(--site-raised),var(--site-panel) 55%)!important;
+ border-color:var(--site-edge)!important;
+}
+.profile-panel .profile-card-hero img {
+ border-radius:50%; border-color:var(--site-edge); box-shadow:none;
+}
+.profile-panel :is(.profile-card-hero p,.profile-card-hero small,.profile-safety summary) {
+ color:var(--site-muted);
+}
+.account-profile .profile-heading {
+ display:flex; align-items:center; gap:clamp(14px,4vw,30px);
+ padding:clamp(16px,4vw,32px); margin-bottom:16px; border-radius:22px;
+ background:linear-gradient(125deg,var(--site-raised),var(--site-panel));
+}
+.account-profile .profile-heading img { flex-shrink:0; border-radius:50%; }
+.account-profile .profile-heading h1 { margin:0; overflow-wrap:anywhere; }
+.account-edit-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin-block:16px; }
+.account-edit-grid section { padding:clamp(12px,3vw,24px); border:1px solid var(--site-edge); border-radius:18px; }
+.account-edit-grid h2 { margin:0 0 12px; font-size:1rem; }
+.account-edit-grid input { max-width:100%; }
+.account-profile .account-menu { display:flex; flex-wrap:wrap; gap:12px 20px; }
+.account-profile .visually-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+html[data-site-theme] .home-space[data-section=friends] #homeFriends .home-person {
+ background:transparent!important; border:0; border-radius:0; border-bottom:1px solid var(--site-edge)!important;
+ padding:12px 2px; min-height:68px;
+}
+#homeFriends .home-person>img { border-radius:50%; }
+#homeFriends .friend-thread .profile-link { text-align:left; max-width:100%; text-overflow:ellipsis; overflow:hidden; white-space:nowrap; }
+#homeFriends .friend-thread .person-info { min-width:0; }
+#homeFriends .friend-actions summary { min-width:36px; min-height:36px; display:grid; place-items:center; }
+html[data-site-theme] .game-stage :is(.match-options,.score,.player) {
+ border-radius:16px; box-shadow:0 4px 16px color-mix(in srgb,var(--site-bg) 50%,transparent);
+}
+.game-stage button:focus-visible { outline:2px solid var(--site-accent); outline-offset:3px; }
+@media (max-width:620px) {
+ .account-edit-grid { grid-template-columns:minmax(0,1fr); }
+ .account-profile .profile-heading img { width:64px; height:64px; }
+}
+
+/* Reserve a usable conversation area when the phone keyboard is open. The
+   player stays mounted and the smaller video retains its aspect ratio. */
+@media (orientation:portrait) {
+ .room-connected.solace-v2.keyboard-open:not(.solace-fullscreen) .player-wrap {
+  height:min(56.25vw,clamp(72px,calc(var(--room-vh, 100dvh) * .29),190px))!important;
+  min-height:0!important;
+ }
+ .room-connected.keyboard-open .watch>.joined-names {display:none!important}
+ .room-connected.keyboard-open .watch>.chat #messages {min-height:0!important}
+ .room-connected:not(.solace-fullscreen) .video-stage .compact-player-controls button {
+  min-height:38px;
+ }
+ .room-connected .bottom-nav { padding-bottom:env(safe-area-inset-bottom,0px); }
+}
+.room-connected .watch-wordmark,.moon-app-room .room-brand {
+ max-width:55%;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.room-connected .compact-player-controls button:focus-visible,
+.room-connected .bottom-nav button:focus-visible {
+ outline:2px solid var(--site-accent,var(--accent));outline-offset:-3px;
+}
+.room-connected .watch-state {flex:0 0 auto}
+.public-content:has(.space-settings) .space-settings,
+.public-content:has(.account-profile) .account-profile {
+ max-width:1080px!important;
+ margin-inline:auto;
+}
+@media(min-width:900px){
+ .messages-space .dm-layout{grid-template-columns:minmax(235px,26%) minmax(0,1fr)}
+}
+@media(prefers-reduced-motion:reduce){
+ .room-connected .compact-player-controls,.room-connected .bottom-nav button{transition:none}
+}
+
+body.room-connected[data-screen]:not([data-screen=watch]) .video-stage :is(.compact-player-controls,.player-touch-surface) {
+ display:none!important;
+ pointer-events:none!important;
+}
+
+/* Use one chrome palette across app surfaces, with a clearer selected tab. */
+html[data-site-theme] :is(.app-sidebar,.app-mobile-top,.app-mobile-nav,.public-header,.public-footer,.bottom-nav,.watch-header,.room-global-nav,.surface-tabs,.task-top,.toolbar,.play-bar,.room-tools-heading,.dm-heading,.world-heading){
+ background:var(--site-chrome)!important;
+ color:var(--site-text)!important;
+ border-color:var(--site-edge)!important;
+}
+html[data-site-theme] :is(.app-mobile-nav,.surface-tabs,.bottom-nav) :is(a,button):not([aria-current=page]):not(.active){color:var(--site-muted)}
+html[data-site-theme] :is(.app-mobile-nav,.surface-tabs,.bottom-nav) :is([aria-current=page],.active){
+ background:color-mix(in srgb,var(--site-accent) 15%,var(--site-raised))!important;
+ color:var(--site-accent)!important;
+}
+html[data-site-theme] :is(.dm-heading,.world-heading,.room-tools-heading){min-width:0}
+html[data-site-theme] :is(.dm-heading h2,.world-heading h1,.room-tools-heading h1){overflow-wrap:anywhere}
+html[data-site-theme] .premium-setting > span{min-width:0;overflow-wrap:anywhere}
+html[data-site-theme] .premium-setting input[role=switch]{flex-shrink:0;cursor:pointer}
+
+/* Draw only within the player border; no outer shadow reaches chat or presence. */
+.room-connected[data-screen=watch]:not(.solace-fullscreen):not(.keyboard-open) .video-stage.ambient-playing .player-wrap::after{
+ content:'';
+ position:absolute;
+ inset:0;
+ z-index:2;
+ pointer-events:none;
+ border-radius:inherit;
+ background-image:var(--ambient-thumbnail,none);
+ background-position:center;
+ background-size:cover;
+ filter:blur(5px) saturate(1.25);
+ mask-image:linear-gradient(to right,#000,transparent 10px,transparent calc(100% - 10px),#000);
+ clip-path:inset(0 round 0);
+ opacity:.62;
+}
+.room-connected[data-screen=watch]:not(.solace-fullscreen):not(.keyboard-open) .video-stage.ambient-playing .player-wrap::before{
+ content:'';
+ position:absolute;
+ inset:0;
+ z-index:2;
+ pointer-events:none;
+ border-radius:inherit;
+ box-shadow:inset 8px 0 12px -8px var(--ambient-left,var(--site-accent)),
+            inset -8px 0 12px -8px var(--ambient-right,var(--site-accent));
+ opacity:.62;
+}
+
+.solace-icon{display:inline-block;width:1.25em;height:1.25em;flex:none;vertical-align:middle}
+:is(.app-sidebar,.app-mobile-nav,.bottom-nav,.room-global-nav,.surface-tabs) .solace-icon{width:21px;height:21px}
+.app-mobile-nav a>.solace-icon,.bottom-nav button>.solace-icon{justify-self:center}
+.surface-tabs button{display:flex;align-items:center;justify-content:center;gap:.25rem}
+.surface-tabs .solace-icon{width:16px;height:16px}
+@media(max-width:600px){.surface-tabs button{flex-direction:column}}
+
+/* Room settings can be a full page or a narrow iframe inside the Watch room. */
+.public-content:has(>.room-control-card){min-width:0}
+.embedded-space .public-content:has(>.room-control-card){
+ box-sizing:border-box;
+ padding:10px clamp(8px,3vw,18px) 14px!important;
+}
+.room-control-card,.room-control-card :is(.home-card,form,label,.room-control-actions,.home-person){
+ min-width:0;
+ max-width:100%;
+}
+.room-control-card :is(input:not([type=checkbox]),select,button){
+ box-sizing:border-box;
+ min-width:0;
+ max-width:100%;
+}
+.room-control-card :is(label,button,.home-person,#controlStatus){
+ white-space:normal;
+ overflow-wrap:anywhere;
+}
+.room-control-card .room-control-actions{align-items:stretch}
+.inline-room-tools{
+ box-sizing:border-box;
+ min-width:0;
+ max-width:100%;
+}
+@media(max-width:480px){
+ .room-control-card .room-control-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,8rem),1fr))}
+ .room-control-card .room-control-actions button{padding-inline:.6rem}
+ .room-control-card .home-person button{padding-inline:.55rem}
+ .room-connected .task-screen[data-screen=room]{padding-inline:clamp(10px,3vw,16px)}
+}

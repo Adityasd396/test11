@@ -1,0 +1,21 @@
+{% extends 'public-base.html' %}
+{% block head %}<meta name="account-csrf" content="{{ account_csrf }}">{% endblock %}
+{% block content %}
+<section id="roomVideoUploadPage" class="account-card" data-room="{{ room }}">
+ <h1>Add video</h1>
+ <form id="roomVideoLinkForm">
+  <label>Video URL<input type="url" required autocomplete="off" placeholder="https://…"></label>
+  <button type="submit">Add link</button>
+  <p role="status"></p>
+ </form>
+ <form>
+  <label>Local video<input type="file" accept="video/mp4,video/webm,.mp4,.m4v,.webm" required></label>
+  <p>MP4 or WebM{% if limit %} up to {{ limit }} MiB{% endif %}. Anyone in this room can watch the uploaded file.</p>
+  <progress max="1" aria-label="Upload progress" hidden></progress>
+  <button type="submit">Add file</button>
+  <button type="button" hidden>Cancel upload</button>
+  <p role="status"></p>
+ </form>
+</section>
+{% endblock %}
+{% block scripts %}<script src="/static/room-video-upload.js?v=2026.11.24.1" defer></script>{% endblock %}

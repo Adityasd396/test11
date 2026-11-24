@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="ops-csrf" content="{{ csrf }}">
+<title>Staff enrollment · Solace</title><link rel="stylesheet" href="/static/admin.css"></head><body>
+<main><section><h1>Set up staff access</h1><p id="enrollStatus" role="status"></p>
+<form id="enrollForm" hidden><h2 id="enrollUsername"></h2><p>Add this setup key to your authenticator as a time-based code.</p>
+<label>Authenticator setup key<input id="enrollSecret" readonly></label>
+<label>New password<input name="password" type="password" autocomplete="new-password" minlength="14" maxlength="128" required></label>
+<label>Authenticator code<input name="code" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" required></label><button>Enroll staff profile</button></form>
+<a href="/ops/solace">Staff sign in</a></section></main>
+<script src="/static/staff-enroll.js" defer></script></body></html>

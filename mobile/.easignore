@@ -1,0 +1,8 @@
+node_modules/
+.expo/
+dist/
+phone-preview-qr.png
+.env.local
+tests/
+
+.export-*/

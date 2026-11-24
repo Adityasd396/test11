@@ -1,0 +1,117 @@
+<section id="managementOverview">
+ <div class="heading"><h2>Audience & activity</h2><label>UTC date range <select id="managementDays"><option value="1">Today</option><option value="7" selected>Last 7 days</option><option value="30">Last 30 days</option></select></label><button id="managementRefreshActivity" type="button">Refresh activity</button></div>
+ <p class="muted">Activity counts recognized profiles on supported app actions. Recent activity covers the past two minutes. Daily rows count a profile once per UTC day.</p>
+ <p id="managementOverviewStatus" role="status"></p><div id="managementMetrics" class="metrics"></div>
+ <div class="table-scroll"><table><thead><tr><th>Date</th><th>Accounts active</th><th>Guests active</th><th>Room messages</th><th>Direct messages</th><th>World messages</th></tr></thead><tbody id="managementDaily"></tbody></table></div>
+ <h3>Watch party funnel</h3>
+ <p class="muted">Search referrals are inferred from the public landing’s referrer. Landing figures count browser profiles. Later stages count rooms started within 30 minutes of a landing.</p>
+ <div class="table-scroll"><table><thead><tr><th>Source</th><th>Landing profiles</th><th>Rooms created</th><th>Second participant joined</th><th>Playback started after join</th></tr></thead><tbody id="managementFunnel"></tbody></table></div>
+</section>
+<section id="managementSite">
+ <h2>Site setup</h2><p class="muted">Publish site identity, public contact details, and search settings. Use an existing public image path or upload a new image, then publish the settings to use it.</p>
+ <form id="managementSiteForm">
+ <div class="management-grid">
+  <label>Site name<input name="name" maxlength="60" required></label>
+  <label>HTTPS public origin<input name="origin" type="url" maxlength="254" placeholder="https://example.com"></label>
+  <label>Public support email<input name="contact" type="email" maxlength="254"></label>
+  <label>Public contact address<textarea name="address" maxlength="400"></textarea></label>
+  <label>Homepage search title<input name="title" maxlength="80"></label>
+  <label>Homepage search description<textarea name="description" maxlength="180"></textarea></label>
+  <label>Logo path<input name="logo" required></label><label>Upload logo<input type="file" data-artwork="logo" accept="image/png,image/jpeg,image/webp"></label><label>Favicon path<input name="favicon" required></label><label>Upload favicon<input type="file" data-artwork="favicon" accept="image/png,image/jpeg,image/webp"></label>
+  <label>Social preview image path<input name="image" required></label><label>Upload social preview<input type="file" data-artwork="image" accept="image/png,image/jpeg,image/webp"></label>
+  <label>Google HTML verification value<input name="verification" maxlength="160"></label>
+ </div>
+ <label><input type="checkbox" name="index"> Allow indexing of public pages</label>
+ <fieldset><legend>Footer links</legend><div id="managementFooter"></div></fieldset>
+ <button type="button" id="managementPreview">Preview changes</button>
+ <p id="managementPreviewResult" role="status"></p>
+ <label>Reason for publishing or restoring<textarea name="reason" minlength="12" maxlength="500" required></textarea></label>
+ <label><input type="checkbox" name="confirmed" required> Confirm public site changes</label>
+ <button>Publish site settings</button>
+ <label>Version to restore<select id="managementVersions"></select></label>
+ <button type="button" id="managementRestore">Restore selected version</button>
+ </form>
+ <p id="managementSiteStatus" role="status"></p>
+</section>
+<section id="managementUsers">
+ <h2>Users & guests</h2>
+ <form id="managementUsersForm">
+ <label>Directory<select name="kind"><option value="all">All profiles</option><option value="account">Registered accounts</option><option value="guest">Guest profiles</option></select></label>
+ <label>Display name<input name="q" type="search" maxlength="60"></label><label>User code<input name="code" type="search" maxlength="32" placeholder="ABCD-EFGH" autocapitalize="characters" spellcheck="false"></label><button>Search profiles</button>
+ </form>
+ <p id="managementUsersStatus" role="status"></p>
+ <div class="table-scroll"><table><thead><tr><th>Name</th><th>User code</th><th>Joined</th><th>Last active</th><th>Account status</th><th>Recent moderation actions</th></tr></thead><tbody id="managementUserRows"></tbody></table></div>
+ <button type="button" id="managementPrevious">Previous</button><button type="button" id="managementNext">Next</button>
+</section>
+<section id="managementGoogle">
+ <h2>Google reports</h2><p class="muted">Search Console and GA4 report different metrics. Reports are fetched on request from the configured properties.</p>
+ <form id="managementGoogleForm"><label>Report<select name="report">
+ <option value="search">Search performance</option><option value="sitemaps">Sitemap status</option>
+ <option value="inspect">URL inspection</option><option value="analytics">GA4 acquisition</option>
+ <option value="realtime">GA4 realtime</option>
+ </select></label><label id="managementInspectPath" hidden>Public page<select name="path">{% for path in public_pages %}<option>{{ path }}</option>{% endfor %}</select></label>
+ <button>Load report</button></form>
+ <p id="managementGoogleStatus" role="status"></p><div id="managementGoogleRows"></div>
+</section>
+<section id="managementStaff">
+ <h2>Staff & security</h2>
+ <form id="managementStaffForm">
+ <label>Action<select name="action"><option value="invite">Create staff enrollment link</option><option value="revoke">Revoke staff sessions</option><option value="transfer">Transfer administrator access</option></select></label>
+ <label>Staff username<input name="username" required minlength="3" maxlength="32" autocomplete="off"></label>
+ <label>Reason<textarea name="reason" required minlength="12" maxlength="500"></textarea></label>
+ <label><input name="confirmed" type="checkbox" required> Confirm this security change</label>
+ <button>Apply</button></form>
+ <p id="managementStaffStatus" role="status"></p>
+ <label id="managementInviteLink" hidden>One-time enrollment link<input readonly></label>
+ <a href="#safetyStaff">Manage existing staff roles</a>
+</section>
+<section id="managementIntegrations">
+ <div class="heading"><h2>Integrations & release</h2><button type="button" id="managementRefreshIntegrations">Check configuration</button></div>
+ <p id="managementIntegrationStatus" role="status"></p>
+ <dl id="managementIntegrationRows" class="integration-facts"></dl>
+ <section class="integration-block" aria-labelledby="crawlerHeading">
+  <div class="heading"><h3 id="crawlerHeading">Search indexing</h3><a class="button" href="#managementSite">Site setup</a></div>
+  <p id="managementIndexing" class="muted"></p>
+  <div class="integration-files">
+   <details><summary>robots.txt <span id="managementRobotsStatus" class="muted"></span></summary><a href="/robots.txt" target="_blank" rel="noopener">Open robots.txt</a><pre id="managementRobotsText" tabindex="0" aria-label="Generated robots.txt"></pre></details>
+   <details><summary>sitemap.xml <span id="managementSitemapStatus" class="muted"></span></summary><a href="/sitemap.xml" target="_blank" rel="noopener">Open sitemap.xml</a><pre id="managementSitemapText" tabindex="0" aria-label="Generated sitemap.xml"></pre></details>
+  </div>
+ </section>
+ <section class="integration-block" aria-labelledby="trackingHeading">
+  <div class="heading"><h3 id="trackingHeading">Activity tracking</h3><a class="button" href="#managementOverview">Open activity report</a></div>
+  <dl id="managementActivitySummary" class="integration-facts"></dl>
+  <p class="muted">Solace counts first-party activity and message totals without storing message bodies in these reports. It keeps daily activity records for about 31 days. Google reports use separately configured properties.</p>
+ </section>
+ <section class="integration-block" aria-labelledby="providersHeading">
+  <h3 id="providersHeading">Provider setup</h3>
+  {% if 'settings:write' in admin_permissions %}
+  <form id="providerSetupForm">
+   <label>Provider<select id="providerSetupChoice" name="provider">
+    <option value="">Choose a provider</option>
+    <option value="youtube">YouTube search</option><option value="email">Account email</option>
+    <option value="push">Web push</option><option value="google_credentials">Google credentials</option>
+    <option value="search">Search Console</option><option value="analytics">Google Analytics 4</option>
+    <option value="backup">Backup directory</option>
+   </select></label>
+   <div id="providerSetupEditor" hidden>
+    <p class="muted">Saved credentials stay hidden. Leave a credential blank to keep it. Host settings can be restored at any time.</p>
+    <p id="providerSetupNote" class="muted"></p>
+    <div id="providerSetupFields" class="management-grid"></div>
+    <label><input name="confirmed" type="checkbox" required> Confirm this provider change</label>
+    <button type="submit">Save configuration</button>
+    <button type="submit" value="reset" class="secondary" id="providerSetupReset">Restore host settings</button>
+   </div>
+   <p id="providerSetupStatus" role="status"></p>
+  </form>
+  {% else %}<p class="muted">A staff account with site settings permission can edit these integrations.</p>{% endif %}
+  <div class="integration-files">
+   <details><summary>YouTube search <span data-integration="youtube_configured"></span></summary><p>Enable YouTube Data API v3 in Google Cloud, restrict the key to that API, and set <code>YOUTUBE_API_KEY</code>. Reload Solace and search from Add video to verify it.</p></details>
+   <details><summary>Account email <span data-integration="email_configured"></span></summary><p>Configure <code>SOLACE_SMTP_HOST</code>, <code>SOLACE_SMTP_PORT</code>, optional <code>SOLACE_SMTP_SSL</code>, provider credentials in <code>SOLACE_SMTP_USERNAME</code> and <code>SOLACE_SMTP_PASSWORD</code>, and a verified <code>SOLACE_MAIL_FROM</code>. Use the published HTTPS origin for account links. Check that your host permits outbound SMTP, then test email verification with a test account.</p></details>
+   <details><summary>Web push <span data-integration="push_configured"></span></summary><p>Set <code>SOLACE_PUSH_PUBLIC_KEY</code>, <code>SOLACE_PUSH_PRIVATE_KEY</code>, and <code>SOLACE_PUSH_CONTACT</code> in the web app and dispatcher. Install <code>pywebpush</code> in the dispatcher environment and supervise <code>python -m flask --app app dispatch-push</code> every few seconds. Confirm outbound access to supported browser push services and device permission before sending a test DM.</p><p class="muted">A configured key does not confirm a running worker or device delivery.</p><a href="https://help.pythonanywhere.com/pages/AlwaysOnTasks/" target="_blank" rel="noopener">PythonAnywhere worker requirements</a></details>
+   <details><summary>Google credentials <span data-integration="google_credentials_configured"></span></summary><p>Enable the Search Console and Analytics Data APIs in Google Cloud as needed. Install <code>google-auth</code> and <code>requests</code> in the web environment, provide application credentials through <code>GOOGLE_APPLICATION_CREDENTIALS</code>, and grant the service account read access to the relevant properties.</p></details>
+   <details><summary>Search Console <span data-integration="search_property"></span></summary><p>Verify site ownership in Search Console. For HTML-tag verification, publish the value from the verification tag in Site setup. Set <code>SOLACE_SEARCH_PROPERTY</code> to the verified property, then submit the public sitemap in Search Console.</p><a href="#managementGoogle">Open Google reports</a></details>
+   <details><summary>Google Analytics 4 <span data-integration="analytics_property"></span></summary><p>Set <code>SOLACE_GA4_PROPERTY</code> to the numeric property ID. Grant the service account read access and check Acquisition or Realtime under Google reports. This connection reads existing GA4 data. It does not install a tracking tag.</p><a href="#managementGoogle">Open Google reports</a></details>
+   <details><summary>Database backups <span data-integration="backup"></span></summary><p>Run <code>tools/storage.py backup</code> with the live instance path and verify the backup with <code>tools/storage.py verify</code>. Set <code>SOLACE_BACKUP_DIRECTORY</code> to the private parent of timestamped backup folders so Solace can find the manifests.</p></details>
+  </div>
+ </section>
+</section>
