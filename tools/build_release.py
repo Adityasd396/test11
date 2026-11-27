@@ -14,7 +14,7 @@ SERVER={'README.md','provider_settings.py','site_management.py','push_notificati
 def validate_source(names,root=ROOT):
     for name in sorted(names):
         path=root/name
-        if path.name not in {'Dockerfile','.dockerignore','.env.example'} and path.suffix not in {'.py','.js','.cjs','.ts','.tsx','.json','.html','.css','.yml'}:continue
+        if path.name not in {'Dockerfile','.dockerignore','.env.example'} and path.suffix not in {'.py','.js','.cjs','.ts','.tsx','.json','.html','.css','.yml','.sh'}:continue
         content=path.read_text(encoding='utf-8-sig')
         if re.search(r'^(?:<<<<<<< .+|=======|>>>>>>> .+)\r?$',content,re.MULTILINE):
             raise ValueError('Unresolved merge conflict in release source: '+name)
@@ -29,7 +29,7 @@ def build(version):
     names=set(SERVER)
     names.update(['tools/audit_python_dependencies.py','.github/workflows/verify.yml'])
     names.update(['requirements-audit.txt','tools/benchmark_local.py','tools/measure_startup.py','tools/measure_page_load.py','tools/generate_audit_media.py'])
-    names.update(['Dockerfile','.dockerignore','run.py','serve.py','run_mobile_server.py','launch_mobile.py','start.bat','start-mobile.bat'])
+    names.update(['setup.sh','Dockerfile','.dockerignore','run.py','serve.py','run_mobile_server.py','launch_mobile.py','start.bat','start-mobile.bat'])
     names.update(path.relative_to(ROOT).as_posix() for pattern in ['*.ts','*.tsx','*.cjs','*.json','app.config.js','index.js','.easignore','scripts/*.cjs'] for path in (ROOT/'mobile').glob(pattern) if path.is_file())
     names.add('tools/build_release.py')
     names.add('mobile/GestureComposer.tsx')

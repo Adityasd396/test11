@@ -6,6 +6,7 @@ This tests compositing and controls, not YouTube network availability or codecs.
 import io
 import os
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
 from PIL import Image
 from playwright.sync_api import sync_playwright, expect
@@ -52,13 +53,16 @@ def main():
                 page.evaluate("showScreen('watch')")
                 post('/api/rooms/' + room, {'action': 'playback', 'playing': True, 'position': 1})
                 page.locator('.video-stage.ambient-playing').wait_for(timeout=5000)
-                page.evaluate("""() => {
-                    const frame = document.createElement('iframe');
-                    frame.id = 'player';
-                    frame.src = 'https://www.youtube.com/embed/visibility-fixture';
-                    document.getElementById('player').replaceWith(frame);
-                    document.getElementById('playerPlaceholder').style.display = 'none';
-                }""")
+                with page.expect_request('https://www.youtube.com/embed/**') as embed:
+                    page.evaluate("""() => {
+                        window.YT = {Player: class {}};
+                        createYoutubePlayer({});
+                        document.getElementById('playerPlaceholder').style.display = 'none';
+                    }""")
+                frame = page.locator('#player')
+                expect(frame).to_have_attribute('referrerpolicy', 'strict-origin-when-cross-origin')
+                assert parse_qs(urlsplit(embed.value.url).query)['origin'] == [BASE]
+                assert embed.value.all_headers().get('referer') == BASE + '/'
                 page.frame_locator('#player').locator('body').wait_for()
                 for theme in ('solace', 'rose', 'ocean', 'forest'):
                     page.evaluate('(theme) => SolaceSiteTheme.apply(theme)', theme)

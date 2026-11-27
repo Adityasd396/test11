@@ -1,6 +1,6 @@
 # Solace setup and operations guide
 
-**Release covered: 2026.11.24.2 · SQLite schema 9**
+**Release covered: 2026.11.24.2 Â· SQLite schema 9**
 
 Solace is a watch-party app for synchronized playback, room chat, private messages, and shared games. The web app runs on Flask and SQLite. The separate Android and iPhone app uses Expo and React Native.
 
@@ -85,7 +85,7 @@ python -c "from PIL import __version__; print(__version__); assert __version__ =
 cp -a "$stage_dir"/. "$app_dir"/
 ```
 
-5. Preserve the existing WSGI environment and import. If PythonAnywhere has a separate `/static/` mapping, it should point to the live app's `static` directory. Click **Web → Reload**. Missing tables and columns are added by the current initialization code. Use the [verification steps](#verify-the-installation-and-build-a-release) before calling the update complete.
+5. Preserve the existing WSGI environment and import. If PythonAnywhere has a separate `/static/` mapping, it should point to the live app's `static` directory. Click **Web â†’ Reload**. Missing tables and columns are added by the current initialization code. Use the [verification steps](#verify-the-installation-and-build-a-release) before calling the update complete.
 
 If upgrading from a version that included the retired personal video feature, the overlay can leave behind old public assets. After verifying the backup, remove only these obsolete application files from the deployed app directory:
 
@@ -139,6 +139,39 @@ Set the WSGI source directory and virtual environment on the Web tab, ensure HTT
 For another Python host, run `python serve.py` behind your HTTPS reverse proxy. The supplied entrypoint defaults to port 8080 and accepts `HOST` and `PORT`. The Dockerfile provides the same entrypoint. Mount a durable, private volume at `/app/instance`, writable by UID 10001. Each deployment needs one authoritative SQLite instance on durable local storage. Multiple servers with separate SQLite files will diverge.
 
 ## Host Solace on your own server
+
+
+### Automatic setup (recommended)
+
+On an Ubuntu or Debian machine with systemd, extract the **Solace-release-source.zip** in your SSH user's home directory (or update the existing deployed checkout). Point your desired DNS name to the server, or use its public IPv4. Allow inbound TCP 80 and 443 in your cloud firewall. Run:
+
+```bash
+sudo bash setup.sh
+```
+
+For a first install, the script asks for the public hostname/IP and contact email if they are not already configured. To supply them directly:
+
+```bash
+sudo bash setup.sh --host watch.example.com --email support@example.com
+```
+
+It installs Nginx, Python 3.13+ and locked dependencies, creates the systemd service and private environment, configures HTTP validation, obtains a trusted certificate, enables certificate renewal and HTTPS, and verifies the readiness endpoint through Nginx. On older Debian/Ubuntu Python versions, it installs Python 3.13 with uv into the app directory. Public IPv4 certificates need Certbot 5.4+ and snapd; a domain may use the distribution's Certbot. Existing certificates are reused. [Python management](https://docs.astral.sh/uv/guides/install-python/) and [IP certificates](https://letsencrypt.org/2026/03/11/shorter-certs-certbot).
+
+For upgrades, extract the new code over the same app directory without deleting the instance or environment file, then rerun the same command. The installer adopts the standard existing service and persistent instance path, backs up SQLite and private deployment configuration under /var/backups/solace, and keeps existing credentials, profiles, chat and uploads in place. Keep separate off-host copies of media, secrets and the previous code before upgrades. If a manually customized service uses another environment file, launcher or directory, the installer stops with a specific message; use the manual instructions below. It does not change your cloud firewall, DNS, or create paid resources.
+
+On completion, open the printed HTTPS URL. Optional email, YouTube search, push, and Google configuration is available in the admin Integrations section. A fresh setup without SMTP permits a limited rollout until mail is configured. A missing API key in the running service can be supplied via /etc/solace.env followed by sudo systemctl restart solace. Named staff enrollment remains the separate setup_staff.py command described below.
+
+Useful checks:
+
+```bash
+sudo systemctl status solace nginx --no-pager
+sudo journalctl -u solace -n 30 --no-pager
+sudo nginx -t
+```
+
+For rollback, use the private backup path printed during setup to recover the previous environment, Nginx config, and systemd unit; restore the previous code and use the documented database recovery procedure if needed. Backups preserve the database before migrations and are not deleted by subsequent setups.
+
+### Manual setup (advanced)
 
 These examples assume a Linux server with Python 3.13+, systemd, Nginx, and a domain you control. Replace `watch.example.com` with your HTTPS hostname. Point its DNS to the server and provision a TLS certificate before exposing the app. Publish ports 80 and 443 through your firewall. Keep the Python listener on loopback. If you are moving existing data, keep the new hostname private during rehearsal and follow the migration section before opening it to users.
 
@@ -194,7 +227,7 @@ UMask=0077
 WantedBy=multi-user.target
 ```
 
-Inside your HTTPS Nginx server block, use this location. Nginx forwards the original host and scheme and overwrites client-supplied forwarded headers. Adjust the upload ceiling if you change Solace’s configured maximum.
+Inside your HTTPS Nginx server block, use this location. Nginx forwards the original host and scheme and overwrites client-supplied forwarded headers. Adjust the upload ceiling if you change Solaceâ€™s configured maximum.
 
 ```nginx
 client_max_body_size 128m;
@@ -226,6 +259,81 @@ curl -i -H 'Host: watch.example.com' http://127.0.0.1:8080/api/ready
 
 A connection refusal from the last command means Waitress is absent from that port. A 503 response shows which readiness check failed. If readiness passes locally but the public site times out, verify that the EC2 instance has a public address, that the security group is attached to it, and that the subnet route points to an internet gateway. Use the configured HTTPS hostname for the public site. A raw-IP request can be rejected when Solace is configured for a different hostname. [AWS public subnet requirements](https://docs.aws.amazon.com/vpc/latest/userguide/working-with-igw.html)
 
+### EC2 public IP and the Nginx welcome page
+
+The welcome page means Nginx handled the request using its default site. Nginx still needs a site matching the address you opened, and that site needs a running Solace service as its upstream. Keep the Git checkout, database and signing secret outside any Nginx document root. Deploy the verified source ZIP if the GitHub checkout is older or contains merge markers. [Nginx request routing](https://nginx.org/en/docs/http/request_processing.html)
+
+If `journalctl -u solace` shows no entries, use `sudo systemctl cat solace` to see whether a unit is installed at all. When installing the unit for a checkout at `/home/ubuntu/test11` with an existing `.venv`, adapt these four lines in the service example above. Keep the existing instance path in `/etc/solace.env` if this server already contains data you intend to use.
+
+```ini
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/test11
+ExecStart=/home/ubuntu/test11/.venv/bin/python -B /home/ubuntu/test11/serve.py
+```
+
+Run `sudo systemctl daemon-reload` and `sudo systemctl enable --now solace` after saving a new unit. Check `sudo systemctl status solace --no-pager -l` if start fails.
+
+1. Follow the service setup above. In `/etc/solace.env` set `SOLACE_PUBLIC_URL=https://203.0.113.10`, replacing the example with your EC2 **Public IPv4 address**. Keep `HOST=127.0.0.1`, `PORT=8080` and `TRUST_PROXY=1`. If the service was already running, restart it to load the environment file. Check it before changing Nginx:
+
+   ```bash
+   curl -i -H 'Host: 203.0.113.10' http://127.0.0.1:8080/api/ready
+   ```
+
+2. For an IP-only deployment, install Certbot 5.4 or newer using the instructions for your Linux distribution. Keep public port 80 available for HTTP validation. Create a dedicated challenge directory with `sudo install -d -m 0755 /var/www/solace-acme`. Add an Nginx site with an exact `server_name` matching your IP. On installations that load `/etc/nginx/conf.d/*.conf`, use `/etc/nginx/conf.d/solace.conf`. Start with this port 80 block only:
+
+   ```nginx
+   server {
+       listen 80;
+       server_name 203.0.113.10;
+
+       location ^~ /.well-known/acme-challenge/ {
+           root /var/www/solace-acme;
+           try_files $uri =404;
+       }
+
+       location / {
+           return 503;
+       }
+   }
+   ```
+
+3. Run `sudo nginx -t && sudo systemctl reload nginx`. With the example IP replaced, request the certificate:
+
+   ```bash
+   sudo certbot certonly --webroot -w /var/www/solace-acme \
+       --preferred-profile shortlived --ip-address 203.0.113.10 \
+       --deploy-hook "systemctl reload nginx"
+   ```
+
+   Use the certificate and key paths reported by Certbot. IP certificates last six days. Enable automatic renewal for the Certbot installation and check it with `sudo certbot renew --dry-run`. [Letâ€™s Encrypt IP certificate instructions](https://letsencrypt.org/2026/03/11/shorter-certs-certbot)
+
+4. Change the HTTP site's `location /` to `return 308 https://203.0.113.10$request_uri;` and keep the challenge route. Add the 443 block using the certificate paths from step 3:
+
+   ```nginx
+   server {
+       listen 443 ssl;
+       server_name 203.0.113.10;
+       ssl_certificate /etc/letsencrypt/live/203.0.113.10/fullchain.pem;
+       ssl_certificate_key /etc/letsencrypt/live/203.0.113.10/privkey.pem;
+       client_max_body_size 128m;
+       client_body_timeout 120s;
+
+       location / {
+           proxy_pass http://127.0.0.1:8080;
+           proxy_set_header Host $host;
+           proxy_set_header X-Forwarded-Host $host;
+           proxy_set_header X-Forwarded-Proto $scheme;
+           proxy_set_header X-Forwarded-For $remote_addr;
+           proxy_send_timeout 120s;
+           proxy_read_timeout 120s;
+           proxy_buffering off;
+       }
+   }
+   ```
+
+   Run `sudo nginx -t && sudo systemctl reload nginx`, then open `https://203.0.113.10/api/health` and the homepage with your real IP. The exact IP match lets the packaged default Nginx site stay in place. If EC2 assigns you a different public IP after a stop/start, update the origin, Nginx server name and certificate together. [EC2 public IPv4 assignment](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-instance-addressing.html)
+
 ## Move from PythonAnywhere
 
 1. **Plan access before changing the address.** If you already own the hostname people use, keep it and switch its DNS to the new server at cutover. If people use the PythonAnywhere hostname, registered users can sign in on the new domain with their existing accounts. Guests should create an account from their existing guest browser on the old site before the final copy. That upgrades their existing identity. Guest records can be copied byte for byte, but browsers send a host-only guest cookie only to the host that issued it. If a guest cannot upgrade and keeping guest access is required, delay cutover until you have an identity-transfer plan. Browser-only preferences and earlier expired data are outside the server snapshot. [Browser cookie scope](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies)
@@ -247,7 +355,7 @@ tar -C "$instance_dir" --exclude='./afterglow.db' --exclude='./afterglow.db-wal'
 printf '%s\n' "$snapshot"
 ```
 
-4. **Transfer and verify privately.** Copy the snapshot over SSH/SFTP, or use the authenticated hosting file manager and an encrypted local staging location. It contains private data and must stay outside the app’s public files. Recreate any host environment values, including the original `SECRET_KEY` if set, staff security configuration, and SMTP, push, and YouTube credentials. Copy referenced private credential files and adjust their paths for the new server. Preserve existing database and media paths through configuration. Start with a **new** instance directory:
+4. **Transfer and verify privately.** Copy the snapshot over SSH/SFTP, or use the authenticated hosting file manager and an encrypted local staging location. It contains private data and must stay outside the appâ€™s public files. Recreate any host environment values, including the original `SECRET_KEY` if set, staff security configuration, and SMTP, push, and YouTube credentials. Copy referenced private credential files and adjust their paths for the new server. Preserve existing database and media paths through configuration. Start with a **new** instance directory:
 
 ```bash
 set -e
@@ -284,11 +392,11 @@ python setup_staff.py your-staff-username --role administrator
 
 Enter a unique staff password when prompted and enroll the displayed TOTP secret in your authenticator. Keep the enrollment secret private. This is a one-time step that disables legacy shared-password access. Use the existing account for ordinary updates. Manage additional staff and permissions under **Staff & security**. **Users & guests** can find a profile by friend code without requiring dashes or matching letter case. **Storage** manages global and individual quotas. **Community safety** manages reports and platform restrictions.
 
-In **Site setup**, preview branding, contact and indexing changes, enter a reason, and publish the revision. Use **Integrations → Check configuration** to check `robots.txt` and `sitemap.xml` against the generated responses. Publish indexing only for the intended HTTPS origin. Private pages remain protected by authorization and excluded from the public sitemap. Submit the public sitemap in Search Console after verifying ownership.
+In **Site setup**, preview branding, contact and indexing changes, enter a reason, and publish the revision. Use **Integrations â†’ Check configuration** to check `robots.txt` and `sitemap.xml` against the generated responses. Publish indexing only for the intended HTTPS origin. Private pages remain protected by authorization and excluded from the public sitemap. Submit the public sitemap in Search Console after verifying ownership.
 
 ### Provider setup
 
-Use **Integrations → Provider setup** with an account that can manage site settings. An empty credential field keeps the saved value. **Restore host settings** removes the selected provider override. The dashboard saves overrides in the private `instance/provider-settings.json` file and masks credentials. Back up this file separately from SQLite. You can also configure provider values in the hosting environment.
+Use **Integrations â†’ Provider setup** with an account that can manage site settings. An empty credential field keeps the saved value. **Restore host settings** removes the selected provider override. The dashboard saves overrides in the private `instance/provider-settings.json` file and masks credentials. Back up this file separately from SQLite. You can also configure provider values in the hosting environment.
 
 | Provider | Setup and check |
 | --- | --- |
@@ -358,7 +466,7 @@ curl --fail https://aditya211.pythonanywhere.com/api/health
 curl --fail https://aditya211.pythonanywhere.com/api/ready
 ```
 
-When authorized to run a live smoke test, create a private disposable test room in the browser. Check that an existing profile and chats remain accessible to their owner, send a synthetic test image or GIF, and try Watch → Chat → Queue → Room Settings with two browser profiles. Leave the test room from both profiles. Verify the signed-in admin Integrations and Overview screens, then check end-to-end delivery for each configured provider.
+When authorized to run a live smoke test, create a private disposable test room in the browser. Check that an existing profile and chats remain accessible to their owner, send a synthetic test image or GIF, and try Watch â†’ Chat â†’ Queue â†’ Room Settings with two browser profiles. Leave the test room from both profiles. Verify the signed-in admin Integrations and Overview screens, then check end-to-end delivery for each configured provider.
 
 From the source root, use a disposable data directory for tests:
 

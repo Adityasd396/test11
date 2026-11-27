@@ -12,6 +12,8 @@ jobs:
         with:
           python-version: '3.13'
       - run: python -m pip install -r requirements.lock
+      - name: Install Nginx for deployment configuration checks
+        run: sudo apt-get update && sudo apt-get install -y nginx
       - run: python -B -m unittest discover -s tests -p 'test_*.py'
       - run: python -B tests/run_local_smoke.py
       - run: docker build -t solace-local-check .
